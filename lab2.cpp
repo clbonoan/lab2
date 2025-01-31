@@ -10,7 +10,8 @@
 //We will do this in class together.
 //
 //to do list
-// 01/31/2025 add some text
+// 01/31/2025 figure out how to fix box color when resizing window
+// after speeding up or slowing down animation
 //
 //
 #include <iostream>
@@ -37,6 +38,11 @@ public:
     float pos[2];
     int bounceCount;
     float speed;
+    int prevXres;
+    int prevYres;
+    bool resized;
+    bool speedChanged;
+    int boxColor[3];
 	Global();
 } g;
 
@@ -99,6 +105,14 @@ Global::Global()
     bounceCount = 0;
     //animation speed
     speed = 1.0f;
+    prevXres = xres;
+    prevYres = yres;
+    resized = false;
+    speedChanged = false;
+    //initialize green color box upon execution
+    boxColor[0] = 0;
+    boxColor[1] = 255;
+    boxColor[2] = 0;
 }
 
 X11_wrapper::~X11_wrapper()
@@ -141,7 +155,7 @@ void X11_wrapper::set_title()
 {
 	//Set the window title bar.
 	XMapWindow(dpy, win);
-	XStoreName(dpy, win, "3350 Lab-2  -  Esc to Exit");
+	XStoreName(dpy, win, "3350 Lab-2");
 }
 
 bool X11_wrapper::getXPending()
@@ -167,7 +181,7 @@ void X11_wrapper::reshape_window(int width, int height)
 {
 	//Window has been resized.
 	g.xres = width;
-	g.yres = height;
+	g.yres = height;lyly
 	//
 	glViewport(0, 0, (GLint)width, (GLint)height);
 	glMatrixMode(GL_PROJECTION); glLoadIdentity();
@@ -184,7 +198,21 @@ void X11_wrapper::check_resize(XEvent *e)
 	XConfigureEvent xce = e->xconfigure;
 	if (xce.width != g.xres || xce.height != g.yres) {
 		//Window size did change.
+        g.resized = true;
+        g.prevXres = g.xres;
 		reshape_window(xce.width, xce.height);
+
+        //change box color based on window resize
+        if (xce.width > g.prevXres || xce.height > g.prevYres) {
+            g.boxColor[0] = 0; 
+            g.boxColor[1] = 0;
+            g.boxColor[2] = 255;
+        }
+        else if (xce.width < g.prevXres || xce.height < g.prevYres) {
+            g.boxColor[0] = 255;
+            g.boxColor[1] = 0;
+            g.boxColor[2] = 0;
+        }
 	}
 }
 //-----------------------------------------------------------------------------
@@ -235,16 +263,15 @@ int X11_wrapper::check_keys(XEvent *e)
 	int key = XLookupKeysym(&e->xkey, 0);
 	if (e->type == KeyPress) {
 		switch (key) {
-			//case XK_a:
-				//the 'a' key was pressed
-				//break;
             case XK_a:
                 //'a' key was pressed
-                g.speed *= 1.2f;
+                g.speed *= 2.0f;
+                g.speedChanged = true;
                 break;
             case XK_b:
                 //'b' key was pressed
-                g.speed /= 1.2f;
+                g.speed /= 2.0f;
+                g.speedChanged = true;
                 break;
 			case XK_Escape:
 				//Escape key was pressed
@@ -305,10 +332,10 @@ void physics()
         g.vdir = -g.vdir;
     }
 
-    //add to disappear if window is too small
-    if (g.xres < g.w * 2) {
+    //add to disappear box if window width is smaller than box width
+    /*if (g.xres < g.w * 2) {
         g.bounceCount = -1;
-    }
+    }*/
 
 }
 
@@ -317,22 +344,34 @@ void render()
 	//clear the window
 	glClear(GL_COLOR_BUFFER_BIT);
     //hide box if window is too small
-	if (g.bounceCount == -1) 
-        return;
+	/*if (g.bounceCount == -1) 
+        return;*/
 
     //draw the box
 	glPushMatrix();
-    //float colorFactor = fmin(1.0f, g.bounceCount / 10.0f);
-    //glColor3f(colorFactor, 0.0f, 1.0f - colorFactor);   //red to blue gradient
-    if (g.bounceCount >= 20) {
-        //red if bouncing more frequently
-        glColor3ub(255, 0, 0);  
-    } else {
-        //blue if bouncing less frequently
-        glColor3ub(0, 0, 255);
-    } 
+    glColor3ub(g.boxColor[0], g.boxColor[1], g.boxColor[2]);  //green box at start
+    //change box color if window is resized
+    if (g.resized) {
+        if (g.xres > g.prevXres || g.yres > g.prevYres) {
+            glColor3ub(g.boxColor[0] = 0, g.boxColor[1] = 0, 
+                    g.boxColor[2] = 255); //blue
+        }
+        else if (g.xres < g.prevXres || g.yres < g.prevYres) {
+            glColor3ub(g.boxColor[0] = 255, g.boxColor[1] = 0, 
+                    g.boxColor[2] = 0); //red
+        }
+        g.resized = false;
+        g.speedChanged = false;
+    }
+
+    if (g.speed > 1.5f) {
+        glColor3ub(255, 0, 0); //red when faster
+    }
+    else if (g.speed < 1.0f) {
+        glColor3ub(0, 0, 255); //blue when slower
+    }
+    g.speedChanged = false;
     //glColor3ub(250, 120, 220);    //color of moving box
-	//glColor3ub(100, 120, 220);
 	glTranslatef(g.pos[0], g.pos[1], 0.0f);
 	glBegin(GL_QUADS);
 		glVertex2f(-g.w, -g.w);
