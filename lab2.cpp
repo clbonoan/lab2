@@ -9,6 +9,9 @@
 //This program needs some refactoring.
 //We will do this in class together.
 //
+//to do list
+// 01/31/2025 add some text
+//
 //
 #include <iostream>
 #include <cstdlib>
@@ -21,6 +24,7 @@ using namespace std;
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <GL/glx.h>
+#include "fonts.h"
 
 //some structures
 
@@ -78,6 +82,7 @@ int main()
 		x11.swapBuffers();
 		usleep(200/g.speed);    //adjusts animation speed
 	}
+    cleanup_fonts();
 	return 0;
 }
 
@@ -136,7 +141,7 @@ void X11_wrapper::set_title()
 {
 	//Set the window title bar.
 	XMapWindow(dpy, win);
-	XStoreName(dpy, win, "3350 Lab-1");
+	XStoreName(dpy, win, "3350 Lab-2  -  Esc to Exit");
 }
 
 bool X11_wrapper::getXPending()
@@ -262,6 +267,10 @@ void init_opengl(void)
 	glClearColor(0.1, 0.1, 0.1, 1.0); //black
     //glClearColor(1.0, 0.1, 0.1, 0.1); //red
     //glClearColor(1.0, 1.0, 0.1, 1.0);   //yellow
+    
+    //do this to enable fonts
+    glEnable(GL_TEXTURE_2D);
+    initialize_fonts();
 }
 
 void physics()
@@ -332,6 +341,15 @@ void render()
 		glVertex2f( g.w, -g.w);
 	glEnd();
 	glPopMatrix();
+
+    Rect r;
+    r.bot = g.yres - 20;
+    r.left = 10;
+    r.center = 0;
+    ggprint8b(&r, 16, 0x00ff0000, "3350 lab-2");
+    ggprint8b(&r, 16, 0x00ffff00, "Esc to exit");
+    ggprint8b(&r, 16, 0x00ffff00, "A    speed up");
+    ggprint8b(&r, 16, 0x00ffff00, "B    slow down");
 }
 
 
