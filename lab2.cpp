@@ -29,7 +29,10 @@ public:
 	int xres, yres;
     float w;
     float dir;
+    float vdir; //vertical direction
     float pos[2];
+    int bounceCount;
+    float speed;
 	Global();
 } g;
 
@@ -73,7 +76,7 @@ int main()
 		physics();
 		render();
 		x11.swapBuffers();
-		usleep(200);
+		usleep(200/g.speed);    //adjusts animation speed
 	}
 	return 0;
 }
@@ -84,8 +87,13 @@ Global::Global()
 	yres = 200;
     w = 20.0f;
     dir = 30.0f;
+    //add vertical movement
+    vdir = 10.0f;  
     pos[0] = 0.0f+w;
     pos[1] = g.yres/2.0f;
+    bounceCount = 0;
+    //animation speed
+    speed = 1.0f;
 }
 
 X11_wrapper::~X11_wrapper()
@@ -222,9 +230,17 @@ int X11_wrapper::check_keys(XEvent *e)
 	int key = XLookupKeysym(&e->xkey, 0);
 	if (e->type == KeyPress) {
 		switch (key) {
-			case XK_a:
+			//case XK_a:
 				//the 'a' key was pressed
-				break;
+				//break;
+            case XK_a:
+                //'a' key was pressed
+                g.speed *= 1.2f;
+                break;
+            case XK_b:
+                //'b' key was pressed
+                g.speed /= 1.2f;
+                break;
 			case XK_Escape:
 				//Escape key was pressed
 				return 1;
@@ -243,23 +259,46 @@ void init_opengl(void)
 	//Set 2D mode (no perspective)
 	glOrtho(0, g.xres, 0, g.yres, -1, 1);
 	//Set the screen background color
-	//glClearColor(0.1, 0.1, 0.1, 1.0);
-    glClearColor(1.0, 0.1, 0.1, 0.1);
+	glClearColor(0.1, 0.1, 0.1, 1.0); //black
+    //glClearColor(1.0, 0.1, 0.1, 0.1); //red
+    //glClearColor(1.0, 1.0, 0.1, 1.0);   //yellow
 }
 
 void physics()
 {
 	//move the box
     g.pos[0] += g.dir;
+    //move box vertically
+    g.pos[1] += g.vdir;
+
     //collision detection
+    //horizontal bouncing
     if (g.pos[0] >= (g.xres-g.w)) {
         g.pos[0] = (g.xres-g.w);
         g.dir = -g.dir;
+        g.bounceCount++;
     }
     
     if (g.pos[0] <= g.w) {
         g.pos[0] = g.w;
         g.dir = -g.dir;
+        g.bounceCount++;
+    }
+
+    //vertical bouncing
+    if (g.pos[1] >= (g.yres-g.w)) {
+        g.pos[1] = (g.yres-g.w);
+        g.vdir = -g.vdir;
+    }
+    
+    if (g.pos[1] <= g.w) {
+        g.pos[1] = g.w;
+        g.vdir = -g.vdir;
+    }
+
+    //add to disappear if window is too small
+    if (g.xres < g.w * 2) {
+        g.bounceCount = -1;
     }
 
 }
@@ -268,10 +307,23 @@ void render()
 {
 	//clear the window
 	glClear(GL_COLOR_BUFFER_BIT);
-	//draw the box
+    //hide box if window is too small
+	if (g.bounceCount == -1) 
+        return;
+
+    //draw the box
 	glPushMatrix();
-    //glColor3ub(250, 120, 220);
-	glColor3ub(100, 120, 220);
+    //float colorFactor = fmin(1.0f, g.bounceCount / 10.0f);
+    //glColor3f(colorFactor, 0.0f, 1.0f - colorFactor);   //red to blue gradient
+    if (g.bounceCount >= 20) {
+        //red if bouncing more frequently
+        glColor3ub(255, 0, 0);  
+    } else {
+        //blue if bouncing less frequently
+        glColor3ub(0, 0, 255);
+    } 
+    //glColor3ub(250, 120, 220);    //color of moving box
+	//glColor3ub(100, 120, 220);
 	glTranslatef(g.pos[0], g.pos[1], 0.0f);
 	glBegin(GL_QUADS);
 		glVertex2f(-g.w, -g.w);
